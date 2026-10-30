@@ -1,0 +1,15 @@
+node_modules/
+
+# Hatósági iratok, napló és helyi beállítások: SOHA nem kerülhetnek a repóba.
+adat/
+beallitasok.json
+ceglista.xlsx
+letoltesek*.xlsx
+*.eml
+debug/
+
+# Telepítő építési köztes fájljai
+telepito/stage/
+telepito/stage-mac/
+telepito/kimenet/
+.DS_Store

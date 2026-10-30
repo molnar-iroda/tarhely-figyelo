@@ -1,0 +1,22 @@
+{
+  "ceglista": "ceglista.xlsx",
+  "naplo": "letoltesek.xlsx",
+  "adatmappa": "adat",
+  "kezdo_datum": null,
+  "kihagyott_postafiokok": ["Értesítési tárhely"],
+  "kihagyott_tipusok": [],
+  "alapertelmezett_cimzett": "iroda@example.com",
+  "titkos_masolat": [],
+  "hiba_ertesites": "iroda@example.com",
+  "max_csatolmany_mb": 20,
+  "max_level_futasonkent": 200,
+  "extra_munkaszuneti_napok": [],
+  "extra_munkanapok": [],
+  "smtp": {
+    "kiszolgalo": "smtp.example.com",
+    "port": 587,
+    "ssl": false,
+    "felhasznalo": "tarhely@example.com",
+    "felado": "Tárhely-figyelő <tarhely@example.com>"
+  }
+}

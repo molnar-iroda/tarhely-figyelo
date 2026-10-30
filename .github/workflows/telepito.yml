@@ -1,0 +1,110 @@
+name: Telepítő
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    paths:
+      - "telepito/**"
+      - "src/ui/**"
+      - "src/schedule*.ts"
+      - "*.cmd"
+      - "*.vbs"
+      - "*.sh"
+      - ".github/workflows/telepito.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Inno Setup
+        run: choco install innosetup --no-progress -y
+      - name: Telepítő építése
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File telepito\epit.ps1
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - name: Telepítő kipróbálása (telepítés, ütemezés, felület, eltávolítás)
+        shell: powershell
+        run: |
+          $f = Get-ChildItem telepito\kimenet\Tarhely-figyelo-telepito-*.exe | Select-Object -First 1
+          powershell -ExecutionPolicy Bypass -File telepito\proba.ps1 -Telepito $f.FullName
+      - name: Telepítő mentése
+        uses: actions/upload-artifact@v4
+        with:
+          name: telepito-windows
+          path: telepito/kimenet/*.exe
+          retention-days: 30
+      - name: Naplók (hiba esetén)
+        if: failure()
+        shell: powershell
+        run: |
+          Get-Content "$env:TEMP\telepites.log" -ErrorAction SilentlyContinue | Select-Object -Last 40
+          Get-Content "$env:TEMP\felulet.err" -ErrorAction SilentlyContinue
+          Get-Content "$env:TEMP\felulet.out" -ErrorAction SilentlyContinue
+
+  mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-latest
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Telepítő (DMG) építése
+        run: bash telepito/mac/epit.sh ${{ matrix.arch }}
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+      - name: Telepítő kipróbálása (felület, launchd-ütemezés, valódi ütemezett futás)
+        run: bash telepito/mac/proba.sh telepito/kimenet/Tarhely-figyelo-mac-${{ matrix.arch }}-*.dmg
+      - name: Telepítő mentése
+        uses: actions/upload-artifact@v4
+        with:
+          name: telepito-mac-${{ matrix.arch }}
+          path: telepito/kimenet/*.dmg
+          retention-days: 30
+      - name: Naplók (hiba esetén)
+        if: failure()
+        run: |
+          tail -40 "$HOME/Library/Logs/Tarhely-figyelo/felulet.log" || true
+          tail -40 "$HOME/Library/Logs/Tarhely-figyelo/utemezett-futas.log" || true
+
+  kiadas:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: telepitok
+          pattern: telepito-*
+          merge-multiple: true
+      - name: Verziómentes fájlnevek (a README letöltő gombjai a legfrissebb kiadásra mutatnak)
+        run: |
+          cd telepitok
+          mv Tarhely-figyelo-telepito-*.exe Tarhely-figyelo-Windows.exe
+          mv Tarhely-figyelo-mac-arm64-*.dmg Tarhely-figyelo-Mac-AppleSilicon.dmg
+          mv Tarhely-figyelo-mac-x64-*.dmg Tarhely-figyelo-Mac-Intel.dmg
+          ls -la
+      - name: Kiadás létrehozása
+        run: gh release create "$GITHUB_REF_NAME" telepitok/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}

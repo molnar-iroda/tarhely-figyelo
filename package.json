@@ -1,0 +1,44 @@
+{
+  "name": "mpcorp-tarhely",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Cégkapu-tárhelyek új leveleinek letöltése, továbbítása a cég felelős könyvelőjének e-mailben, és a letöltések Excel-naplója.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/molnar-iroda/tarhely-figyelo.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "felulet": "node src/cli.ts felulet",
+    "utemezes": "node src/cli.ts utemezes",
+    "beallitas": "node src/cli.ts beallitas",
+    "ellenorzes": "node src/cli.ts ellenorzes",
+    "postafiokok": "node src/cli.ts postafiokok",
+    "teszt-email": "node src/cli.ts teszt-email",
+    "proba": "node src/cli.ts futtatas --proba",
+    "futtatas": "node src/cli.ts futtatas",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "1.0.13",
+    "@napi-rs/keyring": "2.1.2",
+    "@tesseract.js-data/hun": "1.0.0",
+    "exceljs": "4.4.0",
+    "fflate": "0.8.3",
+    "nodemailer": "10.2.1",
+    "playwright": "1.63.0",
+    "tesseract.js": "7.0.0",
+    "unpdf": "1.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/smtp-server": "3.5.13",
+    "smtp-server": "3.21.1",
+    "typescript": "5.9.3"
+  }
+}
