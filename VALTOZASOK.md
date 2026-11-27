@@ -19,6 +19,12 @@
   minősülnek átvettnek. A típusnév ékezet, szóköz és kis-nagybetű nélkül is egyezik
   („Feladási igazolás” = „FeladasiIgazolas”).
 - Egy futás végén az összefoglaló a letöltés nélküli értesítések számát is mutatja.
+- **Verziószám mindenhol**, a gépekre telepítés és a frissítés nyomon követéséhez: a telepítőfájlok neve
+  (`Tarhely-figyelo-Windows-0.5.0.exe`, `Tarhely-figyelo-Mac-AppleSilicon-0.5.0.dmg`,
+  `Tarhely-figyelo-Mac-Intel-0.5.0.dmg`), a Windows *Alkalmazások* listája („Tárhely-figyelő 0.5.0”) és a
+  telepítő fájltulajdonságai, a Mac DMG kötetneve, a kezelőfelület (bal felső sarok és az utolsó futás sora),
+  a futásnapló, a kiküldött levelek lábléce, valamint a `tarhely.cmd --verzio` parancs. A README
+  „Rendszergazdáknak” része leírja, hol olvasható ki (registry is).
 
 ### Javítások
 
@@ -35,6 +41,7 @@
   névrészlet szerint.
 - A kezelőfelület a listamezőket (pl. kihagyott postafiókok, címzettek) **vesszőnél is szétvágta**, ezért a
   vesszőt tartalmazó cégnevek szétestek. Most csak a sortörés választ el két tételt.
+- Az Áttekintés nem mutatta az utolsó futás letöltés nélküli értesítéseinek számát; most mutatja.
 - Az Áttekintés oldalon a lenyitott hibarészlet az 5 másodpercenkénti frissítéskor bezáródott; most nyitva
   marad.
 
@@ -45,6 +52,7 @@
   melyik postafiók milyen módban van, és állítsd át, amit kell.
 - A **próbafutás** is letölti az új leveleket (ez átvételnek számít). A „Csak értesítés” és a „Kihagy” módú
   postafiókokból a próbafutás sem tölt le semmit.
+- A README letöltő gombjai mostantól a legfrissebb kiadás oldalára visznek (a fájlnevekben ott a verzió).
 - Macen az első indításkor a rendszer újra rákérdezhet a megnyitásra és a Node hozzáférésére: engedélyezd.
 
 ## v0.4.0 – 2026-10-30

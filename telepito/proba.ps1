@@ -15,6 +15,11 @@ Igaz (Test-Path "$app\src\cli.ts") "a program ott van"
 Igaz ((Get-ChildItem "$app\browsers" -Directory -Filter "chromium*").Count -gt 0) "a Chromium ott van"
 Igaz (Test-Path ([Environment]::GetFolderPath("Desktop") + "\Tárhely-figyelő.lnk")) "van asztali ikon"
 Igaz (Test-Path "$app\unins000.exe") "van eltávolító"
+$verzio = (Get-Content (Join-Path $PSScriptRoot "..\package.json") -Raw | ConvertFrom-Json).version
+$bejegyzes = Get-ItemProperty "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F1E0C5A-3D77-4B7E-9C2B-7A5D3E8F1A42}_is1"
+Igaz ($bejegyzes.DisplayVersion -eq $verzio) "a Programok listájában a verzió $verzio"
+Igaz ($bejegyzes.DisplayName -eq "Tárhely-figyelő $verzio") "a Programok listájában a név a verzióval együtt látszik"
+Igaz ((& "$app\node\node.exe" "$app\src\cli.ts" --verzio) -eq $verzio) "a telepített program --verzio kimenete $verzio"
 
 Write-Host "== Ütemezés a telepítés után"
 $feladatok = schtasks /Query /FO CSV /NH | Select-String "Tarhely-figyelo-"

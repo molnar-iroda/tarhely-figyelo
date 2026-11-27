@@ -100,5 +100,5 @@ Eltávolítás: előbb az Ütemezés oldalon az „Ütemezés törlése”, azt�
 TXT
 DMG="$OUT/Tarhely-figyelo-mac-$ARCH-$VERZIO.dmg"
 rm -f "$DMG"
-hdiutil create -volname "Tarhely-figyelo" -srcfolder "$DMG_DIR" -ov -format UDZO "$DMG" >/dev/null
+hdiutil create -volname "Tarhely-figyelo $VERZIO" -srcfolder "$DMG_DIR" -ov -format UDZO "$DMG" >/dev/null
 ls -la "$OUT"/*.dmg

@@ -9,8 +9,9 @@ import { runOnce } from "./run.ts";
 import { createRunLog } from "./runlog.ts";
 import { runSchedule } from "./schedule-cli.ts";
 import { runCheck, runMailboxList, runSetup, runTestEmail } from "./setup.ts";
+import { PRODUCT, VERSION } from "./version.ts";
 
-const HELP = `Tárhely-figyelő: a Cégkapu-tárhelyek új leveleit letölti, elküldi a cég
+const HELP = `${PRODUCT}: a Cégkapu-tárhelyek új leveleit letölti, elküldi a cég
 felelős könyvelőjének, és Excel-naplót vezet róluk.
 
 Parancsok:
@@ -31,8 +32,9 @@ A futtatas kapcsolói:
   --lathato                   látható böngészőablakban fut
   --debug                     hiba esetén képernyőkép az adatmappába
 
-Közös kapcsoló:
+Közös kapcsolók:
   --beallitasok <fájl>        beállításfájl (alapból ${defaultConfigPath()})
+  --verzio, -v                a program verziószáma
 `;
 
 async function main(argv: readonly string[]): Promise<number> {
@@ -49,10 +51,15 @@ async function main(argv: readonly string[]): Promise<number> {
       "csak-feldolgozas": { type: "boolean", default: false },
       lathato: { type: "boolean", default: false },
       debug: { type: "boolean", default: false },
-      help: { type: "boolean", short: "h", default: false }
+      help: { type: "boolean", short: "h", default: false },
+      verzio: { type: "boolean", short: "v", default: false }
     }
   });
   const command = positionals[0];
+  if (values.verzio || command === "verzio") {
+    process.stdout.write(`${VERSION}\n`);
+    return 0;
+  }
   if (values.help || command === undefined) {
     process.stdout.write(HELP);
     return 0;

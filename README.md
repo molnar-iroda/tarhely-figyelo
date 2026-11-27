@@ -1,12 +1,13 @@
 <p align="center">
-  <a href="https://github.com/molnar-iroda/tarhely-figyelo/releases/latest/download/Tarhely-figyelo-Windows.exe"><img src="docs/gomb-windows.svg" alt="Letöltés Windowsra" width="380"></a>
+  <a href="https://github.com/molnar-iroda/tarhely-figyelo/releases/latest"><img src="docs/gomb-windows.svg" alt="Letöltés Windowsra" width="380"></a>
   &nbsp;&nbsp;
-  <a href="https://github.com/molnar-iroda/tarhely-figyelo/releases/latest/download/Tarhely-figyelo-Mac-AppleSilicon.dmg"><img src="docs/gomb-mac.svg" alt="Letöltés Macre" width="380"></a>
+  <a href="https://github.com/molnar-iroda/tarhely-figyelo/releases/latest"><img src="docs/gomb-mac.svg" alt="Letöltés Macre" width="380"></a>
 </p>
 <p align="center">
-  <sub>Mindig a legfrissebb kiadást tölti le. Régebbi Intel-processzoros Mac:
-  <a href="https://github.com/molnar-iroda/tarhely-figyelo/releases/latest/download/Tarhely-figyelo-Mac-Intel.dmg">Intel-változat</a>
-  · <a href="https://github.com/molnar-iroda/tarhely-figyelo/releases">minden kiadás</a></sub>
+  <sub>A legfrissebb kiadás oldalára visz; ott a fájlnév a verziószámot is mutatja:
+  <code>Tarhely-figyelo-Windows-0.5.0.exe</code>, <code>Tarhely-figyelo-Mac-AppleSilicon-0.5.0.dmg</code> (M-chip),
+  <code>Tarhely-figyelo-Mac-Intel-0.5.0.dmg</code> (régebbi Intel-processzoros Mac)
+  · <a href="https://github.com/molnar-iroda/tarhely-figyelo/releases">minden kiadás</a> · <a href="VALTOZASOK.md">változások</a></sub>
 </p>
 
 > **Lépésről lépésre, nem technikusoknak:** [UTMUTATO.md](UTMUTATO.md) –
@@ -31,10 +32,10 @@ tarhely.gov.hu ──► letöltés ──► melyik cég? ──► kié a cég
 
 ## Mit tud
 
-- **Telepítő Windowsra** (`Tarhely-figyelo-Windows.exe`): rendszergazdai jog nélkül telepíthető,
+- **Telepítő Windowsra** (`Tarhely-figyelo-Windows-<verzió>.exe`): rendszergazdai jog nélkül telepíthető,
   tartalmazza a Node.js-t és a böngészőt, asztali ikont és Start menü-parancsikont készít, és
   kérésre beállítja az automatikus futást.
-- **Telepítő Macre** (`Tarhely-figyelo-Mac-AppleSilicon.dmg` / `Tarhely-figyelo-Mac-Intel.dmg`): az alkalmazást az Applications
+- **Telepítő Macre** (`Tarhely-figyelo-Mac-AppleSilicon-<verzió>.dmg` / `Tarhely-figyelo-Mac-Intel-<verzió>.dmg`): az alkalmazást az Applications
   mappába kell húzni; ugyanazt a kezelőfelületet adja, a jelszavakat a Kulcskarikán tartja, az
   automatikus futást a launchd végzi. (Apple Silicon = M-chip, Intel = régebbi Mac.)
 - **Helyi kezelőfelület** (az asztali ikonnal, böngészőben): áttekintés és üzembe helyezési lista,
@@ -94,7 +95,7 @@ tarhely.gov.hu ──► letöltés ──► melyik cég? ──► kié a cég
 
 ### Telepítővel (ajánlott)
 
-1. Töltsd le a legfrissebb `Tarhely-figyelo-Windows.exe` fájlt a
+1. Töltsd le a legfrissebb `Tarhely-figyelo-Windows-<verzió>.exe` fájlt a
    [Releases](https://github.com/molnar-iroda/tarhely-figyelo/releases) oldalról, és indítsd el. A telepítő nincs
    kódaláírva, ezért a Windows SmartScreen figyelmeztethet: „További információ → Futtatás mindenképp”.
 2. A program a felhasználó mappájába települ (`%LOCALAPPDATA%\Programs\Tarhely-figyelo`), a
@@ -139,7 +140,7 @@ Az egyes verziók újdonságai és javításai: [VALTOZASOK.md](VALTOZASOK.md) (
 [Releases](https://github.com/molnar-iroda/tarhely-figyelo/releases) oldalon az adott kiadásnál).
 
 1. Várd meg, amíg az esetleg éppen futó letöltés végez, és zárd be a kezelőfelületet.
-2. **Windows:** töltsd le az új `Tarhely-figyelo-Windows.exe` fájlt, és futtasd a régi fölé.
+2. **Windows:** töltsd le az új `Tarhely-figyelo-Windows-<verzió>.exe` fájlt, és futtasd a régi fölé.
    **Mac:** töltsd le az új DMG-t, és húzd az alkalmazást az Applications mappába (*Csere*); ha a Mac
    figyelmeztet, engedélyezd újra a megnyitást, majd az **Ütemezés → Alkalmaz** gombbal erősítsd meg az
    ütemezést.
@@ -377,11 +378,22 @@ telepítő már tartalmazza, így a telepítő a hálózat nélkül is települ 
 ### Telepítés, szabályzatok
 
 - **Csendes telepítés** (Intune Win32-alkalmazás, SCCM, parancssor):
-  `Tarhely-figyelo-Windows.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /TASKS=asztal,utemezes`
+  `Tarhely-figyelo-Windows-0.5.0.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CURRENTUSER /TASKS=asztal,utemezes`
   (a `/TASKS` elhagyható; `utemezes` = a három hétköznapi időpont beállítása a telepítő végén).
   Eltávolítás: `%LOCALAPPDATA%\Programs\Tarhely-figyelo\unins000.exe /VERYSILENT /SUPPRESSMSGBOXES`.
   Intune-ban felhasználói környezetben (*Install behavior: User*) fut, és észlelési szabálynak jó a
-  `%LOCALAPPDATA%\Programs\Tarhely-figyelo\tarhely.cmd` fájl megléte.
+  `%LOCALAPPDATA%\Programs\Tarhely-figyelo\tarhely.cmd` fájl megléte, verzióra pedig a lent leírt
+  `DisplayVersion` registry-érték.
+- **Verziószám** (frissítések nyomon követéséhez), minden helyen ugyanaz, a `package.json`-ből:
+  - a telepítő fájlneve (`Tarhely-figyelo-Windows-0.5.0.exe`) és a fájl tulajdonságai (*Részletek* fül);
+  - Windows *Alkalmazások* listája: „Tárhely-figyelő 0.5.0”; registry:
+    `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F1E0C5A-3D77-4B7E-9C2B-7A5D3E8F1A42}_is1`,
+    `DisplayVersion` érték;
+  - parancssor: `%LOCALAPPDATA%\Programs\Tarhely-figyelo\tarhely.cmd --verzio` (csak a számot írja ki);
+  - a kezelőfelület bal felső sarka, és az Áttekintésen az utolsó futás sora (melyik verzió futott);
+  - a futásnapló minden futás elején (`Tárhely-figyelő 0.5.0 – futás indul.`), az `adat\utolso-futas.json`
+    `verzio` mezője, és a kiküldött levelek lábléce;
+  - Macen: a DMG neve és kötetneve, az alkalmazás *Információk* ablaka (`CFBundleShortVersionString`).
 - **Mit kerül a gépre:** a program (`src\`, `node_modules\`), egy hordozható **Node.js 22** (`node\node.exe`, a
   nodejs.org hivatalos build), a **Playwright-Chromium** (`browsers\`), parancsfájlok (`tarhely.cmd`,
   `futtatas.cmd`, `felulet.vbs`, `futtatas-rejtett.vbs`). A felhasználói adatok: `%APPDATA%\Tarhely-figyelo`.

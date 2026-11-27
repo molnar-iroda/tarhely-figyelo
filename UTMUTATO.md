@@ -9,7 +9,7 @@ Az első beállítás nagyjából egy óra. Utána a program magától dolgozik.
 
 ## Gyorsindítás telepítővel (ajánlott)
 
-1. Töltsd le a legfrissebb `Tarhely-figyelo-Windows.exe` fájlt (**https://github.com/molnar-iroda/tarhely-figyelo/releases**),
+1. Töltsd le a legfrissebb `Tarhely-figyelo-Windows-<verzió>.exe` fájlt (pl. `Tarhely-figyelo-Windows-0.5.0.exe`) (**https://github.com/molnar-iroda/tarhely-figyelo/releases**),
    és indítsd el. Rendszergazdai jog nem kell; a telepítő mindent tartalmaz (a Node.js-t és a böngészőt is),
    semmit nem kell külön telepíteni. Ha a Windows „A számítógépét védte a Windows” ablakot mutat, kattints a
    **További információ**, majd a **Futtatás mindenképp** gombra (a telepítő nincs digitálisan aláírva).
@@ -564,7 +564,9 @@ alatt) és *Bekapcsolás*. Parancsablakból:
 
 ## A program frissítése
 
-**Telepítővel:** töltsd le az új `Tarhely-figyelo-Windows.exe` fájlt, és futtasd a régi fölé. A beállításaid,
+**Telepítővel:** töltsd le az új `Tarhely-figyelo-Windows-<verzió>.exe` fájlt, és futtasd a régi fölé. Hogy
+melyik verzió van fent, a kezelőfelület bal felső sarkában, a név alatt látod; az újdonságok:
+[VALTOZASOK.md](VALTOZASOK.md). A beállításaid,
 a letöltött leveleid és a jelszavaid megmaradnak; az ütemezést a telepítő bejelölt opciója újra beállítja.
 
 **Kézi telepítésnél:**

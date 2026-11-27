@@ -11,6 +11,7 @@ import type { Config, SmtpConfig } from "./config.ts";
 import type { LetterRecord } from "./state.ts";
 import { writeFileAtomic } from "./state.ts";
 import { formatLocalDateTime } from "./time.ts";
+import { PRODUCT } from "./version.ts";
 
 export interface OutgoingMail {
   readonly to: readonly string[];
@@ -147,7 +148,7 @@ export function composeLetterMail(
     ...notes,
     "",
     "-- ",
-    "Ezt a levelet a tárhely-figyelő automatikusan küldte."
+    `Ezt a levelet a ${PRODUCT} automatikusan küldte.`
   ].join("\n");
 
   const html = `<p>${escapeHtml(intro)}</p>
@@ -160,7 +161,7 @@ ${rows
   .join("\n")}
 </table>
 ${notes.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n")}
-<p style="color:#666">Ezt a levelet a tárhely-figyelő automatikusan küldte.</p>`;
+<p style="color:#666">Ezt a levelet a ${escapeHtml(PRODUCT)} automatikusan küldte.</p>`;
 
   return {
     to: record.recipients,
@@ -177,7 +178,7 @@ export function composeNotice(
   subject: string,
   lines: readonly string[]
 ): OutgoingMail {
-  const text = [...lines, "", "-- ", "Ezt a levelet a tárhely-figyelő automatikusan küldte."].join(
+  const text = [...lines, "", "-- ", `Ezt a levelet a ${PRODUCT} automatikusan küldte.`].join(
     "\n"
   );
   return {
@@ -185,7 +186,7 @@ export function composeNotice(
     bcc: [],
     subject,
     text,
-    html: lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("\n"),
+    html: [...lines.map((line) => `<p>${escapeHtml(line)}</p>`), `<p style="color:#666">Ezt a levelet a ${escapeHtml(PRODUCT)} automatikusan küldte.</p>`].join("\n"),
     attachments: []
   };
 }

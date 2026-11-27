@@ -166,8 +166,8 @@ function renderOverview() {
     const kind = !done ? "warn" : last.exitCode === 0 ? "ok" : "bad";
     parts.push(h("div", { class: `alert ${kind}` },
       h("strong", {}, `${done ? (last.exitCode === 0 ? "Az utolsó futás rendben volt" : "Az utolsó futás hibával zárult") : "Az utolsó futás nem fejeződött be"}`),
-      ` (${last.mode === "proba" ? "próba, " : ""}${fmtTime(last.startedAt)}). `,
-      `${last.newLetters} új levél, ${last.emailed} e-mail, ${last.unmatched} céghez nem rendelhető. `,
+      ` (${last.mode === "proba" ? "próba, " : ""}${fmtTime(last.startedAt)}${last.verzio ? `, v${last.verzio}` : ""}). `,
+      `${last.newLetters} új levél, ${last.emailed} e-mail, ${last.unmatched} céghez nem rendelhető${last.notified ? `, ${last.notified} értesítés letöltés nélkül` : ""}. `,
       last.problems.length > 0 ? problemDetails(last.problems) : null));
   } else if (st.kesz) {
     parts.push(h("div", { class: "alert warn" }, "Még nem futott a program. Állítsd be a hiányzó lépéseket, majd indíts egy próbafutást."));
