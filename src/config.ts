@@ -23,7 +23,19 @@ export interface SmtpConfig {
   readonly secure: boolean;
   /** Üres: hitelesítés nélküli belső továbbító. */
   readonly user: string;
+  /** A levelek „From” fejléce, mindig címmel: `Név <cím>` vagy `cím`. */
   readonly from: string;
+}
+
+/** Postafiókonkénti beállítás a kezelőfelület „Postafiókok” lapjáról. */
+export type MailboxMode = "letoltes" | "ertesites" | "kihagy";
+
+export interface MailboxRule {
+  /** A postafiók neve, ahogy a portál mutatja (a törzsszám alapján azonosítjuk). */
+  readonly mailbox: string;
+  readonly mode: MailboxMode;
+  /** Letöltésnél: ha meg van adva, a céglista helyett ide megy a levél; értesítésnél kötelező. */
+  readonly recipients: readonly string[];
 }
 
 export interface Config {
@@ -34,8 +46,13 @@ export interface Config {
   readonly startDate: string | null;
   readonly skipMailboxes: readonly string[];
   readonly skipTypes: readonly string[];
+  /** Ezeket letölti (megnyitja), de nem küldi tovább senkinek. */
+  readonly downloadOnlyTypes: readonly string[];
+  readonly mailboxRules: readonly MailboxRule[];
   readonly defaultRecipients: readonly string[];
+  /** A ténylegesen használt titkos másolat (üres, ha a kapcsoló ki van kapcsolva). */
   readonly bcc: readonly string[];
+  readonly bccEnabled: boolean;
   readonly errorRecipients: readonly string[];
   readonly maxAttachmentMb: number;
   readonly maxLettersPerRun: number;
@@ -99,6 +116,55 @@ function emails(json: Json, key: string): string[] {
   return values;
 }
 
+const MAILBOX_MODES: readonly MailboxMode[] = ["letoltes", "ertesites", "kihagy"];
+
+function mailboxRules(json: Json): MailboxRule[] {
+  const value = json.postafiok_szabalyok;
+  if (value === undefined || value === null) {
+    return [];
+  }
+  if (!Array.isArray(value)) {
+    fail("a „postafiok_szabalyok” mező lista legyen.");
+  }
+  return value.map((item: unknown, index: number) => {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      fail(`a „postafiok_szabalyok” ${index + 1}. eleme nem megfelelő.`);
+    }
+    const rule = item as Json;
+    const mailbox = str(rule, "postafiok");
+    if (mailbox === "") {
+      fail(`a „postafiok_szabalyok” ${index + 1}. eleméből hiányzik a postafiók neve.`);
+    }
+    const mode = str(rule, "mod", "letoltes") as MailboxMode;
+    if (!MAILBOX_MODES.includes(mode)) {
+      fail(`a „postafiok_szabalyok” ${index + 1}. elemének módja ismeretlen: ${mode}`);
+    }
+    const recipients = emails(rule, "cimzett");
+    if (mode === "ertesites" && recipients.length === 0) {
+      fail(`„${mailbox}”: csak értesítésnél meg kell adni, kinek menjen az értesítés.`);
+    }
+    return { mailbox, mode, recipients };
+  });
+}
+
+const ADDRESS = /[^@\s<>]+@[^@\s<>]+\.[^@\s<>]+/;
+
+/**
+ * A feladó mindig címmel: ha a „felado” csak egy név (pl. „Tárhely-figyelő”),
+ * a cím az SMTP-felhasználó lesz. Cím nélküli From fejlécet a levélkészítő
+ * kihagy, és a levél feladó nélkül érkezik.
+ */
+export function senderAddress(felado: string, user: string): string {
+  if (ADDRESS.test(felado)) {
+    return felado;
+  }
+  if (!ADDRESS.test(user)) {
+    fail("az „smtp.felado” mezőben e-mail cím is kell legyen, pl. „Tárhely-figyelő <tarhely@example.com>”.");
+  }
+  const name = felado.replace(/["<>]/g, "").trim();
+  return name === "" ? user : `"${name}" <${user}>`;
+}
+
 export function parseConfig(raw: string, path: string): Config {
   let json: unknown;
   try {
@@ -125,11 +191,8 @@ export function parseConfig(raw: string, path: string): Config {
     port: num(smtpJson, "port", 587),
     secure: smtpJson.ssl === true,
     user,
-    from: str(smtpJson, "felado", user)
+    from: senderAddress(str(smtpJson, "felado", user), user)
   };
-  if (smtp.from === "") {
-    fail("az „smtp.felado” mező kötelező, ha nincs „smtp.felhasznalo”.");
-  }
 
   const startDate = root.kezdo_datum === null ? null : str(root, "kezdo_datum", "");
   if (startDate !== null && startDate !== "" && !isIsoDate(startDate)) {
@@ -162,6 +225,7 @@ export function parseConfig(raw: string, path: string): Config {
     fail("az „alapertelmezett_cimzett” kötelező: ide mennek a céghez nem rendelhető levelek.");
   }
   const errorRecipients = emails(root, "hiba_ertesites");
+  const bccEnabled = root.titkos_masolat_be !== false;
 
   return {
     baseDir,
@@ -171,8 +235,11 @@ export function parseConfig(raw: string, path: string): Config {
     startDate: startDate === "" ? null : startDate,
     skipMailboxes: list(root, "kihagyott_postafiokok"),
     skipTypes: list(root, "kihagyott_tipusok"),
+    downloadOnlyTypes: list(root, "csak_letoltes_tipusok"),
+    mailboxRules: mailboxRules(root),
     defaultRecipients,
-    bcc: emails(root, "titkos_masolat"),
+    bcc: bccEnabled ? emails(root, "titkos_masolat") : [],
+    bccEnabled,
     errorRecipients: errorRecipients.length > 0 ? errorRecipients : defaultRecipients,
     maxAttachmentMb: num(root, "max_csatolmany_mb", 20),
     maxLettersPerRun: num(root, "max_level_futasonkent", 200),

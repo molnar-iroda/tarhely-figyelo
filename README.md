@@ -153,10 +153,13 @@ jelszócsere után. Ugyanez grafikusan: `npm run felulet`.
 | `naplo` | A letöltési napló Excel-fájlja (alapból `letoltesek.xlsx`). Lehet hálózati meghajtón is, hogy a könyvelők is lássák. |
 | `adatmappa` | Ide kerülnek a letöltött iratok, az állapot és a futásnapló (alapból `adat`). |
 | `kezdo_datum` | Csak az ettől a naptól (`ÉÉÉÉ-HH-NN`) érkezett leveleket tölti le. **Az első futás előtt állítsd be**, pl. a mai napra. |
-| `kihagyott_postafiokok` | Ezeket a postafiókokat (névrészlet) nem nézi. Alapból a saját személyes „Értesítési tárhely”. |
-| `kihagyott_tipusok` | Az ilyen típusú vagy tárgyú leveleket naplózza, de nem küldi el (pl. `"Feladási igazolás"`). |
+| `kihagyott_postafiokok` | Ezeket a postafiókokat nem nézi. Soronként a 8 jegyű adószám (pl. `"22690692 - AB Corpus Kft."`) vagy a név egy része. Alapból a saját személyes „Értesítési tárhely”. |
+| `postafiok_szabalyok` | Postafiókonkénti kezelés, a kezelőfelület „Postafiókok” lapján állítható: `{"postafiok": "AB Corpus 22690692", "mod": "letoltes" \| "ertesites" \| "kihagy", "cimzett": [...]}`. `ertesites`: a levelet nem tölti le (nincs átvétel), csak jelzést küld a címzettnek. `letoltes` címzettel: a céglista helyett oda küldi. Elsőbbsége van a `kihagyott_postafiokok` előtt. |
+| `kihagyott_tipusok` | Az ilyen típusú vagy tárgyú leveleket le sem tölti és nem küldi el (pl. `"Feladási igazolás"`). Ékezet, szóköz és kis-nagybetű nem számít. |
+| `csak_letoltes_tipusok` | Az ilyen típusú vagy tárgyú leveleket letölti (megnyitja), de senkinek nem küldi el (pl. `"KNYLEK"`). |
 | `alapertelmezett_cimzett` | Ide mennek azok a levelek, amelyeket nem tud céghez rendelni. Kötelező. |
 | `titkos_masolat` | Minden kiküldött levél titkos másolatot kap ide (pl. archívum). Elhagyható. |
+| `titkos_masolat_be` | `false`: a titkos másolat ki van kapcsolva (a címek megmaradnak). Alapból `true`. |
 | `hiba_ertesites` | Ide megy a hibaértesítés (alapból az alapértelmezett címzett). |
 | `max_csatolmany_mb` | Ennél nagyobb csatolmány helyett a levél a gépen lévő helyét írja meg (alapból 20). |
 | `max_level_futasonkent` | Egy futás legfeljebb ennyi levelet tölt le (alapból 200); a többi a következő futásra marad. |
@@ -165,7 +168,7 @@ jelszócsere után. Ugyanez grafikusan: `npm run felulet`.
 | `smtp.kiszolgalo`, `smtp.port` | A levelezőszerver és portja (általában `587`). |
 | `smtp.ssl` | `true`, ha a szerver a 465-ös porton azonnali SSL-t vár; 587-nél `false`. |
 | `smtp.felhasznalo` | A küldő fiók; üresen hagyva hitelesítés nélkül küld (belső továbbító). |
-| `smtp.felado` | A feladó, pl. `"Tárhely-figyelő <tarhely@example.com>"`. |
+| `smtp.felado` | A feladó, pl. `"Tárhely-figyelő <tarhely@example.com>"`. Ha csak nevet írsz, a cím az `smtp.felhasznalo` lesz. |
 
 ## Céglista – `ceglista.xlsx`
 

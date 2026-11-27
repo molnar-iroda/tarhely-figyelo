@@ -11,6 +11,7 @@ import { loadCompanyList, matchByMailbox, writeCompanyTemplate } from "./compani
 import type { Config } from "./config.ts";
 import { loadConfig } from "./config.ts";
 import { setupHint } from "./errors.ts";
+import { planMailboxes } from "./mailbox-rules.ts";
 import { composeNotice, smtpSender } from "./mailer.ts";
 import type { Log } from "./runlog.ts";
 import { keyring, SMTP_PASSWORD_ENV, smtpPassword } from "./secrets.ts";
@@ -125,22 +126,28 @@ export async function runCheck(config: Config, log: Log): Promise<number> {
 
 export async function runMailboxList(config: Config, log: Log, headed: boolean): Promise<number> {
   const { companies } = await loadCompanyList(config.companyListPath);
-  const { listPortal, selectMailboxes } = await import("./download.ts");
+  const { listPortal } = await import("./download.ts");
   const { mailboxes, letters } = await listPortal({
     headed,
     debugDir: null,
     log,
-    tarhelyDir: join(config.dataDir, "tarhely")
+    tarhelyDir: join(config.dataDir, "tarhely"),
+    dataDir: config.dataDir
   });
-  const processed = new Set(selectMailboxes(mailboxes, config.skipMailboxes).map((item) => item.name));
+  const plans = new Map(planMailboxes(mailboxes, config).map((plan) => [plan.mailbox.name, plan]));
   log("Postafiókok (semmit nem töltöttem le):");
   for (const mailbox of mailboxes) {
     const own = letters.filter((letter) => letter.mailbox === mailbox.name);
     const fresh = own.filter((letter) => letter.isNew).length;
     const company = matchByMailbox(mailbox.name, companies);
-    const target = !processed.has(mailbox.name)
-      ? "kihagyva (beállítás)"
-      : company === null
+    const plan = plans.get(mailbox.name);
+    const target = plan?.mode === "kihagy"
+      ? `kihagyva (${plan.reason})`
+      : plan?.mode === "ertesites"
+        ? `csak értesítés, letöltés nélkül → ${plan.recipients.join(", ")}`
+        : plan !== undefined && plan.recipients.length > 0
+          ? `letöltés → ${plan.recipients.join(", ")}`
+          : company === null
         ? `NINCS a céglistában → ${config.defaultRecipients.join(", ")}`
         : `${company.name} → ${company.accountant} <${company.emails.join(", ")}>`;
     log(`  ${mailbox.index + 1}. ${mailbox.name}: ${own.length} levél, ${fresh} még nem letöltött — ${target}`);

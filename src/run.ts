@@ -13,6 +13,7 @@ import type { Config } from "./config.ts";
 import { describeError, setupHint } from "./errors.ts";
 import type { MailSender } from "./mailer.ts";
 import { composeNotice, fileSender, smtpSender } from "./mailer.ts";
+import { notifyHeldLetters } from "./notify.ts";
 import { processLetters } from "./process.ts";
 import { writeRunStatus } from "./run-status.ts";
 import type { Log } from "./runlog.ts";
@@ -89,7 +90,7 @@ export async function runOnce(options: RunOptions): Promise<number> {
   const release = acquireLock(join(config.dataDir, "futas.lock"));
   const startedAt = new Date().toISOString();
   const mode = options.proba ? "proba" : options.skipDownload ? "feldolgozas" : "futtatas";
-  const counts = { newLetters: 0, emailed: 0, unmatched: 0, skipped: 0 };
+  const counts = { newLetters: 0, emailed: 0, unmatched: 0, skipped: 0, notified: 0 };
   const allProblems: string[] = [];
   let exitCode: number | null = null;
   writeRunStatus(config.dataDir, { mode, startedAt, finishedAt: null, exitCode: null, ...counts, problems: [] });
@@ -122,9 +123,10 @@ export async function runOnce(options: RunOptions): Promise<number> {
           debugDir: options.debug ? join(config.dataDir, "debug") : null,
           log,
           tarhelyDir,
+          dataDir: config.dataDir,
           since,
           max: config.maxLettersPerRun,
-          skipMailboxes: config.skipMailboxes
+          config
         });
         for (const report of result.mailboxes) {
           log(
@@ -134,6 +136,24 @@ export async function runOnce(options: RunOptions): Promise<number> {
         for (const failure of result.failures) {
           problems.push(`Letöltési hiba (${failure.mailbox}, ${failure.eid}): ${failure.error}`);
         }
+        for (const failure of result.mailboxFailures) {
+          problems.push(
+            `A(z) ${failure.mailbox} postafiókot most nem sikerült feldolgozni, a következő futás újra megpróbálja: ${failure.error}`
+          );
+        }
+        const skippedTypes = result.held.filter((letter) => letter.action === "skip");
+        if (skippedTypes.length > 0) {
+          log(`${skippedTypes.length} új levél kihagyott típus miatt letöltés nélkül maradt.`);
+        }
+        const notices = await notifyHeldLetters({
+          config,
+          held: result.held,
+          path: join(config.dataDir, options.proba ? "ertesitesek-proba.json" : "ertesitesek.json"),
+          sender,
+          log
+        });
+        counts.notified = notices.sent;
+        problems.push(...notices.failures.map((failure) => `Értesítés nem ment el: ${failure}`));
         if (result.skippedByLimit > 0) {
           log(`${result.skippedByLimit} új levél a futásonkénti korlát miatt a következő futásra maradt.`);
         }
@@ -161,7 +181,7 @@ export async function runOnce(options: RunOptions): Promise<number> {
     });
     problems.push(...report.emailFailures.map((failure) => `E-mail nem ment el: ${failure}`));
     log(
-      `Kész: ${report.newLetters} új levél, ${report.emailed} e-mail${options.proba ? " (.eml fájlba)" : ""}, ${report.unmatched} céghez nem rendelhető, ${report.skipped} szűrő miatt kihagyva.`
+      `Kész: ${report.newLetters} új levél, ${report.emailed} e-mail${options.proba ? " (.eml fájlba)" : ""}, ${report.unmatched} céghez nem rendelhető, ${report.skipped} szűrő miatt kihagyva${counts.notified > 0 ? `, ${counts.notified} értesítés letöltés nélkül` : ""}.`
     );
 
     if (problems.length > 0 && !options.proba) {

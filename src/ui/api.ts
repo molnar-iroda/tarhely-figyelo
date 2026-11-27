@@ -6,9 +6,10 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-import { type Company, loadCompanyList, writeCompanyTemplate } from "../companies.ts";
+import { type Company, loadCompanyList, matchByMailbox, writeCompanyTemplate } from "../companies.ts";
 import { type Config, loadConfig, parseConfig } from "../config.ts";
 import { isIsoDate } from "../dates.ts";
+import { mailboxKey, matchesSkipPattern, planMailboxes, sameMailbox } from "../mailbox-rules.ts";
 import { describeError } from "../errors.ts";
 import { readRunStatus } from "../run-status.ts";
 import {
@@ -271,6 +272,77 @@ export function buildApi(partial: Partial<ApiDeps> & Pick<ApiDeps, "projectDir" 
     return ok();
   }
 
+  // ---------- Postafiókok ----------
+
+  function readMailboxCache(config: Config): { updatedAt: string | null; names: string[] } {
+    try {
+      const cache = JSON.parse(readFileSync(join(config.dataDir, "postafiokok.json"), "utf8")) as {
+        updatedAt?: string;
+        mailboxes?: { name?: unknown }[];
+      };
+      const names = (cache.mailboxes ?? []).map((item) => item.name).filter((name): name is string => typeof name === "string");
+      return { updatedAt: cache.updatedAt ?? null, names };
+    } catch {
+      return { updatedAt: null, names: [] };
+    }
+  }
+
+  async function mailboxView(): Promise<ApiResult> {
+    const config = requireConfig();
+    const cache = readMailboxCache(config);
+    const info = await companies(config);
+    // A szabállyal rendelkező, de a legutóbbi listában nem szereplő postafiókok is látszanak.
+    const names = [...cache.names];
+    for (const rule of config.mailboxRules) {
+      if (!names.some((name) => sameMailbox(name, rule.mailbox))) {
+        names.push(rule.mailbox);
+      }
+    }
+    const plans = planMailboxes(names.map((name) => ({ name })), config);
+    return ok({
+      frissitve: cache.updatedAt,
+      alapertelmezett: config.defaultRecipients,
+      postafiokok: plans.map((plan) => {
+        const company = matchByMailbox(plan.mailbox.name, info.list);
+        return {
+          nev: plan.mailbox.name,
+          kulcs: mailboxKey(plan.mailbox.name),
+          mod: plan.mode,
+          cimzett: plan.recipients,
+          forras: plan.reason,
+          listaban: cache.names.includes(plan.mailbox.name),
+          ceg: company === null ? null : { nev: company.name, felelos: company.accountant, emailek: company.emails }
+        };
+      })
+    });
+  }
+
+  function saveMailboxRules(body: unknown): ApiResult {
+    const input = object(body);
+    if (!Array.isArray(input.szabalyok)) {
+      throw new BadRequest("A postafiók-beállítások listája hiányzik.");
+    }
+    const rules = input.szabalyok.map((item) => {
+      const rule = object(item);
+      const recipients = Array.isArray(rule.cimzett) ? rule.cimzett.map((value) => text(value, "címzett", 200).trim()).filter(Boolean) : [];
+      return { postafiok: text(rule.postafiok, "postafiók", 300).trim(), mod: text(rule.mod, "mód", 20), cimzett: recipients };
+    });
+    if (!existsSync(configPath)) {
+      return bad("Előbb mentsd a beállításokat.", 422);
+    }
+    const data = object(JSON.parse(readFileSync(configPath, "utf8").replace(/^\uFEFF/u, "")));
+    // Az alapértelmezett (letöltés, céglista szerinti címzett) sort nem kell eltárolni,
+    // kivéve ha a régi kihagyási lista egyébként kihagyná a postafiókot.
+    const skipList = currentConfig().config?.skipMailboxes ?? [];
+    data.postafiok_szabalyok = rules.filter(
+      (rule) =>
+        rule.mod !== "letoltes" ||
+        rule.cimzett.length > 0 ||
+        skipList.some((pattern) => matchesSkipPattern(rule.postafiok, pattern))
+    );
+    return saveSettings({ adatok: data });
+  }
+
   async function secretsInfo(): Promise<ApiResult> {
     const credentials = await credentialInfo();
     const { config } = currentConfig();
@@ -459,6 +531,10 @@ export function buildApi(partial: Partial<ApiDeps> & Pick<ApiDeps, "projectDir" 
           return await letters(query);
         case "GET /api/naplo":
           return logs(query);
+        case "GET /api/postafiokok":
+          return await mailboxView();
+        case "POST /api/postafiokok":
+          return saveMailboxRules(body);
         case "GET /api/cegek":
           return await companyView();
         case "POST /api/megnyitas":

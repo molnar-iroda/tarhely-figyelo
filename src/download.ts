@@ -2,20 +2,23 @@
 // a postafiókok listája és az új levelek letöltése. Ezt a modult a CLI csak
 // akkor tölti be, ha tényleg a portálhoz kell nyúlni.
 
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { Writable } from "node:stream";
 
-import { stripAccents } from "./companies.ts";
+import type { Config } from "./config.ts";
+import { matchingType, planMailboxes } from "./mailbox-rules.ts";
 import type { Log } from "./runlog.ts";
 import { keyring } from "./secrets.ts";
+import { writeFileAtomic } from "./state.ts";
 import { createReporter } from "./vendor/tarhely-cli/report.ts";
 import { withSession } from "./vendor/tarhely-cli/session.ts";
 import { type CredentialStore, createCredentialStore } from "./vendor/tarhely-cli/store/credentials.ts";
-import type { MailboxRef } from "./vendor/tarhely-cli/tarhely/api.ts";
+import type { LetterRow, MailboxRef } from "./vendor/tarhely-cli/tarhely/api.ts";
 import {
   type DownloadResult,
   downloadNewLetters,
+  type RowDecision,
   type ListedLetter,
   listLetters
 } from "./vendor/tarhely-cli/tarhely/inbox.ts";
@@ -30,15 +33,31 @@ export function ugyfelkapuStore(): CredentialStore {
   return createCredentialStore(process.env, keyring("ugyfelkapu"));
 }
 
-const fold = (value: string) => stripAccents(value).toLowerCase();
+/** A postafiókok listája a kezelőfelület „Postafiókok” lapjához (minden belépéskor frissül). */
+export interface MailboxCache {
+  readonly updatedAt: string;
+  readonly mailboxes: readonly { readonly name: string; readonly index: number }[];
+}
 
-/** A beállításban kihagyottként megadott (névrészlet) postafiókok nélkül. */
+export const MAILBOX_CACHE_FILE = "postafiokok.json";
+
+export function writeMailboxCache(dataDir: string, mailboxes: readonly MailboxRef[], now = new Date()): void {
+  const cache: MailboxCache = {
+    updatedAt: now.toISOString(),
+    mailboxes: mailboxes.map((mailbox) => ({ name: mailbox.name, index: mailbox.index }))
+  };
+  mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  writeFileAtomic(join(dataDir, MAILBOX_CACHE_FILE), `${JSON.stringify(cache, null, 2)}\n`);
+}
+
+/** A feldolgozandó (nem kihagyott) postafiókok. */
 export function selectMailboxes(
   mailboxes: readonly MailboxRef[],
-  skip: readonly string[]
+  config: Pick<Config, "mailboxRules" | "skipMailboxes">
 ): MailboxRef[] {
-  const patterns = skip.map(fold);
-  return mailboxes.filter((mailbox) => !patterns.some((pattern) => fold(mailbox.name).includes(pattern)));
+  return planMailboxes(mailboxes, config)
+    .filter((plan) => plan.mode !== "kihagy")
+    .map((plan) => plan.mailbox);
 }
 
 // A tarhely-cli lépésnaplóját a saját futásnaplónkba tereljük.
@@ -59,26 +78,42 @@ function reporterFor(options: PortalOptions) {
 export async function downloadFromPortal(
   options: PortalOptions & {
     readonly tarhelyDir: string;
+    readonly dataDir: string;
     readonly since: string | null;
     readonly max: number;
-    readonly skipMailboxes: readonly string[];
+    readonly config: Pick<Config, "mailboxRules" | "skipMailboxes" | "skipTypes">;
   }
 ): Promise<DownloadResult> {
   const reporter = reporterFor(options);
   return withSession(
     { store: ugyfelkapuStore(), reporter, headed: options.headed },
     async (session) => {
-      const mailboxes = selectMailboxes(session.mailboxes, options.skipMailboxes);
+      writeMailboxCache(options.dataDir, session.mailboxes);
+      const plans = planMailboxes(session.mailboxes, options.config);
+      const active = plans.filter((plan) => plan.mode !== "kihagy");
+      const notifyOnly = new Set(active.filter((plan) => plan.mode === "ertesites").map((plan) => plan.mailbox.addressId));
       options.log(
-        `Postafiókok: ${session.mailboxes.length} elérhető, ebből ${mailboxes.length} feldolgozandó.`
+        `Postafiókok: ${session.mailboxes.length} elérhető, ebből ${active.length} feldolgozandó` +
+          (notifyOnly.size > 0 ? ` (${notifyOnly.size} csak értesítéssel, letöltés nélkül)` : "") +
+          "."
       );
+      const decide = (mailbox: MailboxRef, row: LetterRow): RowDecision => {
+        if (notifyOnly.has(mailbox.addressId)) {
+          return { action: "notify", reason: "csak értesítés (postafiók-beállítás)" };
+        }
+        const pattern = matchingType(options.config.skipTypes, row.type, row.desc);
+        return pattern === undefined
+          ? { action: "download" }
+          : { action: "skip", reason: `kihagyott típus („${pattern}”)` };
+      };
       return downloadNewLetters(session, {
-        mailboxes,
+        mailboxes: active.map((plan) => plan.mailbox),
         since: options.since,
         outDir: options.tarhelyDir,
         max: options.max,
         extract: true,
-        step: reporter.step
+        step: reporter.step,
+        decide
       });
     }
   );
@@ -86,12 +121,13 @@ export async function downloadFromPortal(
 
 /** Belépés és listázás letöltés nélkül: semmit nem vesz át a tárhelyről. */
 export async function listPortal(
-  options: PortalOptions & { readonly tarhelyDir: string }
+  options: PortalOptions & { readonly tarhelyDir: string; readonly dataDir: string }
 ): Promise<{ mailboxes: MailboxRef[]; letters: ListedLetter[] }> {
   const reporter = reporterFor(options);
   return withSession(
     { store: ugyfelkapuStore(), reporter, headed: options.headed },
     async (session) => {
+      writeMailboxCache(options.dataDir, session.mailboxes);
       const letters = await listLetters(session, {
         mailboxes: session.mailboxes,
         since: null,

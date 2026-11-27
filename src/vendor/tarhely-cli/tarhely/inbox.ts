@@ -39,8 +39,15 @@ export async function listLetters(session: Session, options: ListOptions): Promi
   const known = options.outDir === null ? new Set<string>() : knownIds(readIndex(options.outDir));
   const out: ListedLetter[] = [];
   for (const mailbox of options.mailboxes) {
-    await switchMailbox(session.page, session.sniffed, mailbox, options.step);
-    const rows = await apiList(session.page, session.sniffed, mailbox);
+    let rows: LetterRow[];
+    try {
+      await switchMailbox(session.page, session.sniffed, mailbox, options.step);
+      rows = await apiList(session.page, session.sniffed, mailbox);
+    } catch (error) {
+      // Listázásnál egy postafiók hibája csak kimarad, a többi listája kell.
+      options.step("postafiok", false, `${mailbox.name}: ${error instanceof Error ? error.message : String(error)}`);
+      continue;
+    }
     options.step("lista", true, `${mailbox.name}: ${rows.length} üzenet`);
     for (const row of rows) {
       out.push({ ...row, mailbox: mailbox.name, isNew: isNewLetter(row, known, options.since) });
@@ -49,11 +56,27 @@ export async function listLetters(session: Session, options: ListOptions): Promi
   return out;
 }
 
+/** Mi legyen egy új levéllel: letöltés, vagy letöltés (átvétel) nélkül csak jelzés / kihagyás. */
+export type RowDecision =
+  | { readonly action: "download" }
+  | { readonly action: "notify" | "skip"; readonly reason: string };
+
 export interface DownloadOptions extends ListOptions {
   readonly outDir: string;
   readonly max: number;
   readonly extract: boolean;
   readonly now?: () => Date;
+  /** Letöltés előtti döntés levelenként; alapértelmezés: minden új levél letöltése. */
+  readonly decide?: (mailbox: MailboxRef, row: LetterRow) => RowDecision;
+  /** Ennyi egymás utáni postafiók-hiba után a futás leáll (valószínűleg a munkamenet szakadt meg). */
+  readonly maxConsecutiveMailboxFailures?: number;
+}
+
+export interface HeldLetter {
+  readonly mailbox: string;
+  readonly row: LetterRow;
+  readonly action: "notify" | "skip";
+  readonly reason: string;
 }
 
 export interface MailboxReport {
@@ -72,6 +95,10 @@ export interface DownloadResult {
   readonly mailboxes: readonly MailboxReport[];
   readonly letters: readonly IndexEntry[];
   readonly failures: readonly { eid: string; mailbox: string; error: string }[];
+  /** Letöltés nélkül hagyott új levelek (csak értesítés vagy kihagyott típus). */
+  readonly held: readonly HeldLetter[];
+  /** Postafiókok, amelyeket hiba miatt ebben a futásban nem sikerült feldolgozni. */
+  readonly mailboxFailures: readonly { mailbox: string; error: string }[];
 }
 
 export async function downloadNewLetters(
@@ -86,12 +113,48 @@ export async function downloadNewLetters(
   let remaining = options.max;
   let skippedByLimit = 0;
 
+  const held: HeldLetter[] = [];
+  const mailboxFailures: { mailbox: string; error: string }[] = [];
+  const maxConsecutive = options.maxConsecutiveMailboxFailures ?? 3;
+  let consecutive = 0;
+
   for (const mailbox of options.mailboxes) {
-    await switchMailbox(session.page, session.sniffed, mailbox, options.step);
-    const rows = await apiList(session.page, session.sniffed, mailbox);
-    const fresh = rows.filter((row) => isNewLetter(row, known, options.since));
-    options.step("lista", true, `${mailbox.name}: ${rows.length} üzenet, ${fresh.length} új`);
-    const quotaPercent = await readQuotaPercent(session.page, session.sniffed, mailbox);
+    let rows: LetterRow[];
+    let quotaPercent: number | null;
+    try {
+      await switchMailbox(session.page, session.sniffed, mailbox, options.step);
+      rows = await apiList(session.page, session.sniffed, mailbox);
+      quotaPercent = await readQuotaPercent(session.page, session.sniffed, mailbox);
+      consecutive = 0;
+    } catch (error) {
+      // Egy postafiók hibája nem viszi el a futást: a többi postafiók feldolgozása
+      // folytatódik, ez pedig a következő futáson újra sorra kerül. Ha sorban több
+      // is elbukik, valószínűleg a munkamenet szakadt meg: akkor leállunk.
+      const message = error instanceof Error ? error.message : String(error);
+      mailboxFailures.push({ mailbox: mailbox.name, error: message });
+      options.step("postafiok", false, `${mailbox.name}: ${message}`);
+      consecutive += 1;
+      if (consecutive >= maxConsecutive) {
+        throw error;
+      }
+      continue;
+    }
+    const newRows = rows.filter((row) => isNewLetter(row, known, options.since));
+    const fresh: LetterRow[] = [];
+    for (const row of newRows) {
+      const decision = options.decide?.(mailbox, row) ?? { action: "download" };
+      if (decision.action === "download") {
+        fresh.push(row);
+      } else {
+        held.push({ mailbox: mailbox.name, row, action: decision.action, reason: decision.reason });
+      }
+    }
+    options.step(
+      "lista",
+      true,
+      `${mailbox.name}: ${rows.length} üzenet, ${newRows.length} új` +
+        (newRows.length > fresh.length ? `, ebből ${newRows.length - fresh.length} letöltés nélkül` : "")
+    );
 
     let downloaded = 0;
     let failed = 0;
@@ -134,7 +197,9 @@ export async function downloadNewLetters(
     skippedByLimit,
     mailboxes: reports,
     letters,
-    failures
+    failures,
+    held,
+    mailboxFailures
   };
 }
 

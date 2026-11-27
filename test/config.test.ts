@@ -24,6 +24,40 @@ describe("beállítások", () => {
     assert.deepEqual(config.extraWorkdays, []);
   });
 
+  it("a feladó mindig e-mail címmel megy ki", () => {
+    const parse = (smtp: Record<string, unknown>) =>
+      parseConfig(JSON.stringify({ ...BASE, smtp: { kiszolgalo: "smtp.example.com", ...smtp } }), "b.json").smtp.from;
+    assert.equal(parse({ felhasznalo: "message@example.com", felado: "Tárhely-figyelő" }), '"Tárhely-figyelő" <message@example.com>');
+    assert.equal(parse({ felhasznalo: "message@example.com", felado: "Tárhely <t@example.com>" }), "Tárhely <t@example.com>");
+    assert.equal(parse({ felhasznalo: "message@example.com" }), "message@example.com");
+    assert.throws(() => parse({ felhasznalo: "", felado: "Tárhely-figyelő" }), /e-mail cím/);
+  });
+
+  it("postafiók-szabályok, titkos másolat kapcsoló, csak letöltendő típusok", () => {
+    const config = parseConfig(
+      JSON.stringify({
+        ...BASE,
+        titkos_masolat: "juli@example.com",
+        titkos_masolat_be: false,
+        csak_letoltes_tipusok: ["KNYLEK"],
+        postafiok_szabalyok: [{ postafiok: "AB Corpus 22690692", mod: "ertesites", cimzett: "juli@example.com, kati@example.com" }]
+      }),
+      "b.json"
+    );
+    assert.deepEqual(config.bcc, []);
+    assert.equal(config.bccEnabled, false);
+    assert.deepEqual(config.downloadOnlyTypes, ["KNYLEK"]);
+    assert.deepEqual(config.mailboxRules, [{ mailbox: "AB Corpus 22690692", mode: "ertesites", recipients: ["juli@example.com", "kati@example.com"] }]);
+    assert.throws(
+      () => parseConfig(JSON.stringify({ ...BASE, postafiok_szabalyok: [{ postafiok: "X 12345678", mod: "ertesites" }] }), "b.json"),
+      /kinek menjen/
+    );
+    assert.throws(
+      () => parseConfig(JSON.stringify({ ...BASE, postafiok_szabalyok: [{ postafiok: "X 12345678", mod: "valami" }] }), "b.json"),
+      /ismeretlen/
+    );
+  });
+
   it("a minta beállításfájl érvényes", async () => {
     const { readFileSync } = await import("node:fs");
     const raw = readFileSync(new URL("../beallitasok.minta.json", import.meta.url), "utf8");

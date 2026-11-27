@@ -125,6 +125,23 @@ describe("kezelőfelület-kiszolgáló", () => {
     assert.match(readFileSync(join(dir, "beallitasok.json"), "utf8"), /uj@example\.com/u);
   });
 
+  it("a postafiókokat listázza, a szabályokat a beállításfájlba menti", async () => {
+    writeFileSync(join(dir, "adat", "postafiokok.json"), JSON.stringify({ updatedAt: "2026-11-27T10:00:00Z", mailboxes: [{ name: "AB Corpus 22690692", index: 1 }, { name: "Értesítési tárhely", index: 0 }] }));
+    const view = (await (await get("/api/postafiokok")).json()) as { postafiokok: { nev: string; mod: string }[] };
+    assert.deepEqual(view.postafiokok.map((item) => [item.nev, item.mod]), [["AB Corpus 22690692", "letoltes"], ["Értesítési tárhely", "kihagy"]]);
+    assert.equal((await post("/api/postafiokok", { szabalyok: [{ postafiok: "AB Corpus 22690692", mod: "ertesites", cimzett: [] }] })).status, 422);
+    const saved = await post("/api/postafiokok", { szabalyok: [{ postafiok: "AB Corpus 22690692", mod: "ertesites", cimzett: ["juli@example.com"] }, { postafiok: "Értesítési tárhely", mod: "letoltes", cimzett: [] }] });
+    assert.equal(saved.status, 200);
+    const file = JSON.parse(readFileSync(join(dir, "beallitasok.json"), "utf8")) as { postafiok_szabalyok: unknown };
+    assert.deepEqual(file.postafiok_szabalyok, [
+      { postafiok: "AB Corpus 22690692", mod: "ertesites", cimzett: ["juli@example.com"] },
+      { postafiok: "Értesítési tárhely", mod: "letoltes", cimzett: [] }
+    ]);
+    const again = (await (await get("/api/postafiokok")).json()) as { postafiokok: { nev: string; mod: string; cimzett: string[] }[] };
+    assert.deepEqual(again.postafiokok[0]?.cimzett, ["juli@example.com"]);
+    assert.equal(again.postafiokok[1]?.mod, "letoltes");
+  });
+
   it("a titkokat elmenti, de sosem küldi vissza", async () => {
     assert.equal((await post("/api/titkok", { ugyfelkapu: { felhasznalo: "kovacs", jelszo: "titok123" } })).status, 422);
     assert.equal((await post("/api/titkok", { ugyfelkapu: { felhasznalo: "kovacs", jelszo: "titok123", totp: "nem-kulcs" } })).status, 422);
