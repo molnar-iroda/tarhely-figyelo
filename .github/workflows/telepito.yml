@@ -115,6 +115,14 @@ jobs:
           printf '\n---\n\n**Letöltés:** Windows: `Tarhely-figyelo-Windows-%s.exe` · Mac (M-chip): `Tarhely-figyelo-Mac-AppleSilicon-%s.dmg` · Mac (Intel): `Tarhely-figyelo-Mac-Intel-%s.dmg`. Frissítés: futtasd/húzd a régi fölé, az adatok megmaradnak.\n' "$V" "$V" "$V" >> jegyzet.md
           cat jegyzet.md
       - name: Kiadás létrehozása
-        run: gh release create "$GITHUB_REF_NAME" telepitok/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file jegyzet.md
+        # Ha a kiadást a GitHub felületén hozták létre (Releases → Draft a new release, új címkével),
+        # a telepítőket és a leírást ahhoz tölti fel.
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" telepitok/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file jegyzet.md
+          else
+            gh release create "$GITHUB_REF_NAME" telepitok/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file jegyzet.md
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
