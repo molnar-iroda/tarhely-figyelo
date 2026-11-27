@@ -16,6 +16,8 @@ export interface RunStatus {
   readonly emailed: number;
   readonly unmatched: number;
   readonly skipped: number;
+  /** Letöltés nélküli értesítések (régi fájlokban hiányzik). */
+  readonly notified?: number;
   readonly problems: readonly string[];
 }
 

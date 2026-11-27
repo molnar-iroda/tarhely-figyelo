@@ -4,6 +4,7 @@ const TABS = [
   ["attekintes", "Áttekintés"],
   ["levelek", "Levelek"],
   ["beallitasok", "Beállítások"],
+  ["postafiokok", "Postafiókok"],
   ["cegek", "Cégek"],
   ["utemezes", "Ütemezés"],
   ["naplo", "Napló"]
@@ -15,7 +16,7 @@ Element.prototype.replaceChildren = function (...kids) {
   return nativeReplace.apply(this, kids.flat().filter((kid) => kid !== null && kid !== undefined && kid !== false));
 };
 
-const S = { tab: "attekintes", status: null, operationShown: false, timer: null, opTimer: null };
+const S = { tab: "attekintes", status: null, operationShown: false, timer: null, opTimer: null, problemsOpen: false };
 const main = document.getElementById("main");
 
 function h(tag, attrs = {}, ...children) {
@@ -129,7 +130,7 @@ async function refreshStatus() {
 
 function render() {
   main.replaceChildren();
-  ({ attekintes: renderOverview, levelek: renderLetters, beallitasok: renderSettings, cegek: renderCompanies, utemezes: renderSchedule, naplo: renderLog })[S.tab]();
+  ({ attekintes: renderOverview, levelek: renderLetters, beallitasok: renderSettings, postafiokok: renderMailboxes, cegek: renderCompanies, utemezes: renderSchedule, naplo: renderLog })[S.tab]();
   main.focus({ preventScroll: true });
 }
 
@@ -167,7 +168,7 @@ function renderOverview() {
       h("strong", {}, `${done ? (last.exitCode === 0 ? "Az utolsó futás rendben volt" : "Az utolsó futás hibával zárult") : "Az utolsó futás nem fejeződött be"}`),
       ` (${last.mode === "proba" ? "próba, " : ""}${fmtTime(last.startedAt)}). `,
       `${last.newLetters} új levél, ${last.emailed} e-mail, ${last.unmatched} céghez nem rendelhető. `,
-      last.problems.length > 0 ? h("details", {}, h("summary", {}, `${last.problems.length} probléma`), h("ul", {}, last.problems.map((p) => h("li", {}, p)))) : null));
+      last.problems.length > 0 ? problemDetails(last.problems) : null));
   } else if (st.kesz) {
     parts.push(h("div", { class: "alert warn" }, "Még nem futott a program. Állítsd be a hiányzó lépéseket, majd indíts egy próbafutást."));
   }
@@ -194,6 +195,13 @@ function renderOverview() {
   for (const section of main.querySelectorAll(".card")) section.style.marginTop = "16px";
   main.querySelectorAll(".alert").forEach((a) => { a.style.marginBottom = "12px"; });
   main.scrollTop = keep;
+}
+
+// Az Áttekintés 5 másodpercenként újrarajzolódik: a lenyitott hibarészlet maradjon nyitva.
+function problemDetails(problems) {
+  const details = h("details", { open: S.problemsOpen }, h("summary", {}, `${problems.length} probléma`), h("ul", {}, problems.map((p) => h("li", {}, p))));
+  details.addEventListener("toggle", () => { S.problemsOpen = details.open; });
+  return details;
 }
 
 const tile = (label, num, kind = "") => h("div", { class: `card tile ${kind}` }, h("div", { class: "num" }, num), h("div", { class: "lbl" }, label));
@@ -303,9 +311,10 @@ async function renderLetters() {
 
 // ---------- Beállítások ----------
 
-const LISTS = ["kihagyott_postafiokok", "kihagyott_tipusok", "alapertelmezett_cimzett", "titkos_masolat", "hiba_ertesites", "extra_munkaszuneti_napok", "extra_munkanapok"];
+const LISTS = ["kihagyott_postafiokok", "kihagyott_tipusok", "csak_letoltes_tipusok", "alapertelmezett_cimzett", "titkos_masolat", "hiba_ertesites", "extra_munkaszuneti_napok", "extra_munkanapok"];
 const asLines = (v) => (Array.isArray(v) ? v : v ? [v] : []).join("\n");
-const fromLines = (s) => s.split(/\r?\n|,|;/).map((x) => x.trim()).filter(Boolean);
+// Csak sortörésnél vágunk: a cégnevekben lehet vessző. (Az e-mail címeket a program a vesszőnél is szétválasztja.)
+const fromLines = (s) => s.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
 
 async function renderSettings() {
   main.replaceChildren(h("h1", {}, "Beállítások"), h("p", { class: "muted" }, "Betöltés…"));
@@ -317,22 +326,25 @@ async function renderSettings() {
   const text = (id, label, hint, value, type = "text", ph = "") => field(id, label, hint, h("input", { id, type, value: value ?? "", placeholder: ph, autocomplete: "off" }));
   const area = (id, label, hint, value) => field(id, label, hint, h("textarea", { id }, asLines(value)));
   f.ssl = h("input", { id: "ssl", type: "checkbox" }); f.ssl.checked = cfg.smtp?.ssl === true;
+  f.bccOn = h("input", { id: "titkos_masolat_be", type: "checkbox" }); f.bccOn.checked = cfg.titkos_masolat_be !== false;
 
   const smtp = cfg.smtp ?? {};
   const form = h("div", {},
     section("Címzettek", "Ide mennek a hibaértesítések és a céghez nem rendelhető levelek.",
       area("alapertelmezett_cimzett", "Alapértelmezett címzett", "Egy sor egy e-mail cím. Kötelező.", cfg.alapertelmezett_cimzett),
       area("hiba_ertesites", "Hibaértesítés címzettje", "Üresen hagyva az alapértelmezett címzett kapja.", cfg.hiba_ertesites),
-      area("titkos_masolat", "Titkos másolat (bcc)", "Minden kiküldött levélről másolat ide is megy. Nem kötelező.", cfg.titkos_masolat)),
+      area("titkos_masolat", "Titkos másolat (bcc)", "Minden kiküldött levélről másolat ide is megy. Nem kötelező.", cfg.titkos_masolat),
+      h("label", { class: "check" }, f.bccOn, "Titkos másolat küldése bekapcsolva")),
     section("Levelezés (SMTP)", "A tárhely-figyelő ezen a fiókon küldi a leveleket.",
       h("div", { class: "two" }, text("smtp_kiszolgalo", "Kiszolgáló", "pl. smtp.office365.com", smtp.kiszolgalo), text("smtp_port", "Port", "587 (STARTTLS) vagy 465 (SSL)", smtp.port ?? 587, "number")),
-      h("div", { class: "two" }, text("smtp_felhasznalo", "Felhasználó", "Üres: hitelesítés nélküli belső továbbító.", smtp.felhasznalo), text("smtp_felado", "Feladó", "pl. Tárhely-figyelő <tarhely@example.com>", smtp.felado)),
+      h("div", { class: "two" }, text("smtp_felhasznalo", "Felhasználó", "Üres: hitelesítés nélküli belső továbbító.", smtp.felhasznalo), text("smtp_felado", "Feladó", "pl. Tárhely-figyelő <tarhely@example.com>. Ha csak nevet írsz, a cím a felhasználó lesz.", smtp.felado)),
       h("label", { class: "check" }, f.ssl, "SSL-kapcsolat azonnal (465-ös port)"),
       h("div", { class: "row", style: null }, h("button", { class: "btn", onclick: sendTest }, "Teszt e-mail küldése…"), h("span", { class: "muted" }, "Előbb mentsd a beállításokat és a jelszót."))),
     section("Letöltés", "Mit és mettől töltsön le.",
       text("kezdo_datum", "Kezdő dátum", "Az ekkortól érkezett leveleket tölti le az első futáskor. A letöltés átvételnek számít!", cfg.kezdo_datum ?? "", "date"),
-      area("kihagyott_postafiokok", "Kihagyott postafiókok", "Egy sor egy név (a postafiók nevének részlete).", cfg.kihagyott_postafiokok),
-      area("kihagyott_tipusok", "Kihagyott üzenettípusok", "Egy sor egy típus.", cfg.kihagyott_tipusok),
+      area("kihagyott_postafiokok", "Kihagyott postafiókok", "Egy sor egy postafiók: elég a 8 jegyű adószám, vagy a név egy része. Postafiókonként a „Postafiókok” lapon is beállíthatod.", cfg.kihagyott_postafiokok),
+      area("kihagyott_tipusok", "Kihagyott üzenettípusok", "Egy sor egy típus. Ezeket a program le sem tölti (nincs átvétel), és nem küldi tovább.", cfg.kihagyott_tipusok),
+      area("csak_letoltes_tipusok", "Letölti, de nem küldi tovább", "Egy sor egy típus, pl. KNYLEK. Ezeket a program letölti (megnyitja), de senkinek nem küld róluk e-mailt.", cfg.csak_letoltes_tipusok),
       h("div", { class: "two" }, text("max_csatolmany_mb", "Legnagyobb csatolmány (MB)", "", cfg.max_csatolmany_mb ?? 20, "number"), text("max_level_futasonkent", "Legfeljebb ennyi levél futásonként", "", cfg.max_level_futasonkent ?? 200, "number"))),
     section("Munkarend", "A határidő-számításhoz: a törvényi ünnepeket a program ismeri.",
       area("extra_munkaszuneti_napok", "Plusz munkaszüneti napok", "Egy sor egy dátum (ÉÉÉÉ-HH-NN), pl. hídnapok.", cfg.extra_munkaszuneti_napok),
@@ -369,9 +381,7 @@ async function renderSettings() {
   async function saveSettings() {
     const out = { ...cfg, smtp: { ...smtp } };
     for (const key of LISTS) out[key] = fromLines(f[key].value);
-    for (const key of ["alapertelmezett_cimzett", "hiba_ertesites", "titkos_masolat", "kihagyott_postafiokok", "kihagyott_tipusok", "extra_munkaszuneti_napok", "extra_munkanapok"]) {
-      if (out[key].length === 0 && key !== "alapertelmezett_cimzett") out[key] = key === "hiba_ertesites" ? [] : [];
-    }
+    out.titkos_masolat_be = f.bccOn.checked;
     out.kezdo_datum = f.kezdo_datum.value || null;
     out.max_csatolmany_mb = Number(f.max_csatolmany_mb.value);
     out.max_level_futasonkent = Number(f.max_level_futasonkent.value);
@@ -401,6 +411,60 @@ async function renderSettings() {
     go("attekintes");
     await runOp({ nev: "teszt-email", cim: input.value });
   }
+}
+
+// ---------- Postafiókok ----------
+
+const MODES = [["letoltes", "Letölt és küld"], ["ertesites", "Csak értesítés"], ["kihagy", "Kihagy"]];
+
+async function renderMailboxes() {
+  main.replaceChildren(h("h1", {}, "Postafiókok"), h("p", { class: "muted" }, "Betöltés…"));
+  let data;
+  try { data = await api("/api/postafiokok"); } catch (e) { toast(e.message, true); return; }
+  const rows = data.postafiokok.map((p) => {
+    const mode = h("select", { "aria-label": `${p.nev} kezelése` }, MODES.map(([v, l]) => h("option", { value: v }, l)));
+    mode.value = p.mod;
+    const to = h("input", { type: "text", value: p.cimzett.join(", "), "aria-label": `${p.nev} címzettje`, placeholder: "" });
+    const hint = h("div", { class: "muted" });
+    const update = () => {
+      to.disabled = mode.value === "kihagy";
+      to.placeholder = mode.value === "ertesites" ? "kötelező: kinek menjen az értesítés" : mode.value === "letoltes" ? (p.ceg ? `céglista: ${p.ceg.emailek.join(", ")}` : `céglista / ${data.alapertelmezett.join(", ")}`) : "";
+      hint.textContent = mode.value === "letoltes" ? "Üresen hagyva a céglista szerinti könyvelő kapja." : mode.value === "ertesites" ? "A levél a tárhelyen marad megnyitatlanul; csak jelzés megy." : "";
+    };
+    mode.addEventListener("change", update);
+    update();
+    return { p, mode, to, el: h("tr", {},
+      h("td", {}, p.nev, p.listaban ? null : h("div", {}, pill("gray", "nincs a legutóbbi listában"))),
+      h("td", {}, p.ceg ? h("span", {}, p.ceg.nev, h("div", { class: "muted" }, p.ceg.felelos || "")) : h("span", { class: "muted" }, "–")),
+      h("td", {}, mode),
+      h("td", {}, to, hint)) };
+  });
+  const filter = h("input", { type: "text", placeholder: "Szűrés névre vagy adószámra…", "aria-label": "Szűrés" });
+  filter.addEventListener("input", () => {
+    const q = filter.value.trim().toLowerCase();
+    for (const r of rows) r.el.hidden = q !== "" && !`${r.p.nev} ${r.p.kulcs} ${r.p.ceg?.nev ?? ""}`.toLowerCase().includes(q);
+  });
+  async function save() {
+    const szabalyok = rows.map((r) => ({ postafiok: r.p.nev, mod: r.mode.value, cimzett: r.mode.value === "kihagy" ? [] : r.to.value.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean) }));
+    const missing = szabalyok.find((r) => r.mod === "ertesites" && r.cimzett.length === 0);
+    if (missing) { toast(`„${missing.postafiok}”: add meg, kinek menjen az értesítés.`, true); return; }
+    try { await api("/api/postafiokok", { body: { szabalyok } }); toast("A postafiók-beállítások mentve."); renderMailboxes(); } catch (e) { toast(e.message, true); }
+  }
+  async function reload() {
+    go("attekintes");
+    await runOp({ nev: "postafiokok" });
+  }
+  main.replaceChildren(h("h1", {}, "Postafiókok"),
+    h("p", { class: "sub" }, "Postafiókonként beállíthatod, mi történjen az új levelekkel. A „Csak értesítés” módban a program a levelet nem tölti le, így az átvétel sem történik meg."),
+    data.frissitve ? null : h("div", { class: "alert warn" }, "Még nincs beolvasva a postafiókok listája. Kattints a „Postafiókok beolvasása” gombra (belép a tárhelyre, de semmit nem tölt le)."),
+    h("div", { class: "row" }, filter, h("span", { class: "muted" }, data.frissitve ? `Lista: ${fmtTime(data.frissitve)}` : ""), h("span", { class: "spacer" }),
+      h("button", { class: "btn", onclick: reload }, "Postafiókok beolvasása"),
+      h("button", { class: "btn primary", onclick: save }, "Mentés")),
+    h("div", { class: "card" }, rows.length === 0 ? h("p", { class: "empty" }, "Nincs megjeleníthető postafiók.") :
+      h("div", { class: "tablewrap" }, h("table", {}, h("thead", {}, h("tr", {}, ["Postafiók", "Cég a céglistában", "Kezelés", "Címzett"].map((t) => h("th", {}, t)))),
+        h("tbody", {}, rows.map((r) => r.el))))));
+  filter.style.minWidth = "260px";
+  main.querySelectorAll(".card, .row, .alert").forEach((el) => { el.style.marginTop = "14px"; });
 }
 
 // ---------- Cégek ----------

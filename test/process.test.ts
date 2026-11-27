@@ -105,6 +105,39 @@ describe("feldolgozás", () => {
     assert.equal(cellText(byEid.get("C3")?.getCell(3).value), "99999999 (Ismeretlen Zrt)");
   });
 
+  it("csak letöltendő típus nem megy ki; a postafiókra beállított címzett felülírja a céglistát", async () => {
+    const base = tempDir("feldolgozas");
+    const config = testConfig(base, {
+      skipTypes: [],
+      downloadOnlyTypes: ["KNYLEK"],
+      mailboxRules: [{ mailbox: "12345678 - Példa Korlátolt Felelősségű Társaság", mode: "letoltes", recipients: ["kati@example.com"] }]
+    });
+    const tarhelyDir = join(config.dataDir, "tarhely");
+    writeTarhely(tarhelyDir, [
+      { eid: "K1", mailbox: "99999999 (Ismeretlen Zrt)", desc: "KNYLEK, Elfogadott bizonylat nyugta", type: "Elfogadó nyugta", text: "" },
+      { eid: "P1", mailbox: "12345678 (Példa Kft)", desc: "Tájékoztatás", text: "" }
+    ]);
+    const sender = recordingSender(new Set());
+    const report = await processLetters({
+      config,
+      companies: COMPANIES,
+      tarhelyDir,
+      statePath: join(config.dataDir, "allapot.json"),
+      logPath: config.logPath,
+      sender,
+      proba: false,
+      log: () => {},
+      now: () => new Date("2026-10-27T08:16:00.000Z")
+    });
+    assert.equal(report.newLetters, 2);
+    assert.equal(report.skipped, 1);
+    assert.equal(sender.sent.length, 1);
+    assert.deepEqual(sender.sent[0]?.to, ["kati@example.com"]);
+    const state = JSON.parse(readFileSync(join(config.dataDir, "allapot.json"), "utf8")) as State;
+    assert.equal(state.letters.K1?.emailStatus, "kihagyva");
+    assert.match(state.letters.K1?.skipReason ?? "", /nem továbbítandó/);
+  });
+
   it("csak lejárt, jelzett dátumot tartalmazó levél: deadlineExpired=true, deadline=null", async () => {
     const base = tempDir("feldolgozas");
     const config = testConfig(base);

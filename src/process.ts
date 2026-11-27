@@ -7,10 +7,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { Company } from "./companies.ts";
-import { matchByContent, matchByMailbox, stripAccents } from "./companies.ts";
+import { matchByContent, matchByMailbox } from "./companies.ts";
 import type { Config } from "./config.ts";
 import { findDeadline } from "./deadline.ts";
 import { LogLockedError, upsertLogRows } from "./excel-log.ts";
+import { matchingType, recipientsFor } from "./mailbox-rules.ts";
 import { textOfFiles } from "./letter-text.ts";
 import type { MailSender } from "./mailer.ts";
 import { composeLetterMail } from "./mailer.ts";
@@ -66,10 +67,6 @@ export function readIndexFile(tarhelyDir: string, log: (message: string) => void
   return entries;
 }
 
-function fold(value: string): string {
-  return stripAccents(value).toLowerCase();
-}
-
 const OCR_NOTE = "(Szkennelt irat, OCR-rel felismert szöveg – a dátumok tévesek lehetnek, ellenőrizd az eredetit!) ";
 
 const OCR_INCOMPLETE_NOTE =
@@ -92,9 +89,15 @@ async function buildRecord(entry: IndexEntry, options: ProcessOptions): Promise<
     matchedBy = company === null ? null : "tartalom";
   }
 
-  const skipPattern = config.skipTypes.find((pattern) =>
-    fold(`${entry.type} ${entry.desc}`).includes(fold(pattern))
-  );
+  const skipPattern = matchingType(config.skipTypes, entry.type, entry.desc);
+  const downloadOnly = skipPattern === undefined ? matchingType(config.downloadOnlyTypes, entry.type, entry.desc) : undefined;
+  const skipReason =
+    skipPattern !== undefined
+      ? `kihagyott típus („${skipPattern}”)`
+      : downloadOnly !== undefined
+        ? `letöltve, nem továbbítandó („${downloadOnly}”)`
+        : null;
+  const mailboxRecipients = recipientsFor(entry.mailbox, config);
   const downloadedAt = new Date(entry.downloadedAt);
   const deadline = findDeadline(
     fullText,
@@ -110,7 +113,12 @@ async function buildRecord(entry: IndexEntry, options: ProcessOptions): Promise<
     taxNumber: company?.taxNumber ?? "",
     accountant: company?.accountant ?? "",
     matchedBy,
-    recipients: company === null ? [...config.defaultRecipients] : [...company.emails],
+    recipients:
+      mailboxRecipients.length > 0
+        ? [...mailboxRecipients]
+        : company === null
+          ? [...config.defaultRecipients]
+          : [...company.emails],
     subject: entry.desc || entry.type,
     type: entry.type,
     sender: entry.sender,
@@ -124,8 +132,8 @@ async function buildRecord(entry: IndexEntry, options: ProcessOptions): Promise<
     ...(ocr || ocrIncomplete ? { deadlineOcr: true } : {}),
     dir: entry.dir,
     files,
-    skipReason: skipPattern === undefined ? null : `kihagyott típus („${skipPattern}”)`,
-    emailStatus: skipPattern === undefined ? "fuggo" : "kihagyva",
+    skipReason,
+    emailStatus: skipReason === null ? "fuggo" : "kihagyva",
     emailError: null,
     emailAttempts: 0,
     emailedAt: null,
