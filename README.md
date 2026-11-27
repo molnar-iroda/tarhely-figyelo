@@ -553,5 +553,8 @@ futtatja (a Mac-DMG-ket is); `v*` címkére GitHub Release-t is készít a háro
 git tag v0.5.0 && git push --tags   # előbb állítsd át a package.json verzióját, és írd meg a VALTOZASOK.md új részét
 ```
 
+Parancssor nélkül: GitHub → **Releases → Draft a new release** → *Choose a tag*: új címke (pl. `v0.5.0`), cél: `main`
+→ **Publish release**. A munkafolyamat kb. 10 perc alatt felölti a három telepítőt és a VALTOZASOK.md szerinti leírást.
+
 A letöltött iratok, a beállítások és a táblák nem kerülhetnek a repóba (lásd
 `.gitignore`); tesztekben csak kitalált adat szerepelhet.
