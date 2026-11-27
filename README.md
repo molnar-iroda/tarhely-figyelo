@@ -40,6 +40,8 @@ tarhely.gov.hu ──► letöltés ──► melyik cég? ──► kié a cég
 - **Helyi kezelőfelület** (az asztali ikonnal, böngészőben): áttekintés és üzembe helyezési lista,
   futtatás / próbafutás / ellenőrzés gombbal élő kimenettel, levelek és határidők, beállítások,
   belépők (Windows kulcstartó / Mac Kulcskarika), céglista, ütemezés, napló.
+- **Postafiókonkénti kezelés** (kezelőfelület → *Postafiókok*): letölt és küld, csak értesítés (letöltés, azaz
+  átvétel nélkül) vagy kihagy, postafiókonként saját címzettel.
 - **Automatikus futás** hétköznap, alapból 8:00, 12:00 és 16:00 (a felületen módosítható);
   a kimaradt futást pótolja.
 - **Határidő-felismerés**, szkennelt iratokra helyi OCR-rel.
@@ -97,7 +99,7 @@ tarhely.gov.hu ──► letöltés ──► melyik cég? ──► kié a cég
    kódaláírva, ezért a Windows SmartScreen figyelmeztethet: „További információ → Futtatás mindenképp”.
 2. A program a felhasználó mappájába települ (`%LOCALAPPDATA%\Programs\Tarhely-figyelo`), a
    beállítások és a letöltött levelek a `%APPDATA%\Tarhely-figyelo` mappába kerülnek. Frissítéskor az
-   új telepítőt a régi fölé kell futtatni; az adatok megmaradnak.
+   új telepítőt a régi fölé kell futtatni; az adatok megmaradnak (lásd [Frissítés](#frissítés)).
 3. A végén megnyílik a **kezelőfelület**; az **Áttekintés** „Üzembe helyezés” listája végigvezet a
    hiányzó lépéseken (belépők, céglista, kezdő dátum, ütemezés).
 4. Eltávolítás: Windows-beállítások → Alkalmazások. A program rákérdez, hogy az adatokat is törölje-e;
@@ -130,6 +132,21 @@ Az automatikus futás a launchd-ben él (`~/Library/LaunchAgents/hu.iroda.tarhel
 hétköznap a megadott időpontokban fut, ha be vagy jelentkezve. Ha a Mac az időpontban aludt, ébredéskor
 pótolja; kikapcsolt gépen nem fut. Munkaidőben ne hagyd, hogy a Mac elaludjon (Rendszerbeállítások →
 Akkumulátor / Energia, vagy `caffeinate`).
+
+### Frissítés
+
+Az egyes verziók újdonságai és javításai: [VALTOZASOK.md](VALTOZASOK.md) (és a
+[Releases](https://github.com/molnar-iroda/tarhely-figyelo/releases) oldalon az adott kiadásnál).
+
+1. Várd meg, amíg az esetleg éppen futó letöltés végez, és zárd be a kezelőfelületet.
+2. **Windows:** töltsd le az új `Tarhely-figyelo-Windows.exe` fájlt, és futtasd a régi fölé.
+   **Mac:** töltsd le az új DMG-t, és húzd az alkalmazást az Applications mappába (*Csere*); ha a Mac
+   figyelmeztet, engedélyezd újra a megnyitást, majd az **Ütemezés → Alkalmaz** gombbal erősítsd meg az
+   ütemezést.
+3. A beállítások, a céglista, a letöltött levelek, a napló és a jelszavak megmaradnak (ezek nem a
+   programmappában vannak).
+4. Nyisd meg a kezelőfelületet: a bal felső sarokban, a név alatt az új verziószám látszik. Olvasd el a
+   [VALTOZASOK.md](VALTOZASOK.md) „Frissítés előtt” részét, és indíts egy **próbafutást**.
 
 ### Kézi telepítés (telepítő nélkül)
 
@@ -521,7 +538,7 @@ futtatja (a Mac-DMG-ket is); `v*` címkére GitHub Release-t is készít a háro
 `package.json` adja).
 
 ```powershell
-git tag v0.3.0 && git push --tags   # előbb állítsd át a package.json verzióját
+git tag v0.5.0 && git push --tags   # előbb állítsd át a package.json verzióját, és írd meg a VALTOZASOK.md új részét
 ```
 
 A letöltött iratok, a beállítások és a táblák nem kerülhetnek a repóba (lásd

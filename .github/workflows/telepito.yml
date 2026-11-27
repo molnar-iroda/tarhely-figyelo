@@ -92,6 +92,7 @@ jobs:
     needs: [windows, mac]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: telepitok
@@ -104,7 +105,13 @@ jobs:
           mv Tarhely-figyelo-mac-arm64-*.dmg Tarhely-figyelo-Mac-AppleSilicon.dmg
           mv Tarhely-figyelo-mac-x64-*.dmg Tarhely-figyelo-Mac-Intel.dmg
           ls -la
+      - name: Kiadási jegyzet a VALTOZASOK.md-ből
+        run: |
+          awk -v v="## $GITHUB_REF_NAME " 'index($0, v) == 1 { on = 1; next } on && /^## / { exit } on' VALTOZASOK.md > jegyzet.md
+          if [ ! -s jegyzet.md ]; then echo "A VALTOZASOK.md-ben nincs „## $GITHUB_REF_NAME” rész." >&2; exit 1; fi
+          printf '\n---\n\n**Letöltés:** Windows: `Tarhely-figyelo-Windows.exe` · Mac (M-chip): `Tarhely-figyelo-Mac-AppleSilicon.dmg` · Mac (Intel): `Tarhely-figyelo-Mac-Intel.dmg`. Frissítés: futtasd/húzd a régi fölé, az adatok megmaradnak.\n' >> jegyzet.md
+          cat jegyzet.md
       - name: Kiadás létrehozása
-        run: gh release create "$GITHUB_REF_NAME" telepitok/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+        run: gh release create "$GITHUB_REF_NAME" telepitok/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes-file jegyzet.md
         env:
           GH_TOKEN: ${{ github.token }}
