@@ -8,6 +8,8 @@ import { writeFileAtomic } from "./state.ts";
 
 export interface RunStatus {
   readonly mode: "futtatas" | "proba" | "feldolgozas";
+  /** A futtató program verziója (régi fájlokban hiányzik). */
+  readonly verzio?: string;
   readonly startedAt: string;
   /** Null: még fut (vagy váratlanul megszakadt). */
   readonly finishedAt: string | null;
@@ -39,6 +41,7 @@ export function readRunStatus(dataDir: string): RunStatus | null {
     }
     return {
       mode: parsed.mode ?? "futtatas",
+      ...(typeof parsed.verzio === "string" ? { verzio: parsed.verzio } : {}),
       startedAt: parsed.startedAt,
       finishedAt: parsed.finishedAt ?? null,
       exitCode: parsed.exitCode ?? null,
@@ -46,6 +49,7 @@ export function readRunStatus(dataDir: string): RunStatus | null {
       emailed: parsed.emailed ?? 0,
       unmatched: parsed.unmatched ?? 0,
       skipped: parsed.skipped ?? 0,
+      ...(typeof parsed.notified === "number" ? { notified: parsed.notified } : {}),
       problems: parsed.problems ?? []
     };
   } catch {

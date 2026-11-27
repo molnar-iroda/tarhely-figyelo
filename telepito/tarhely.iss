@@ -12,6 +12,11 @@
 AppId={{6F1E0C5A-3D77-4B7E-9C2B-7A5D3E8F1A42}
 AppName=Tárhely-figyelő
 AppVersion={#Verzio}
+AppVerName=Tárhely-figyelő {#Verzio}
+VersionInfoVersion={#Verzio}
+VersionInfoProductVersion={#Verzio}
+VersionInfoProductName=Tárhely-figyelő
+VersionInfoDescription=Tárhely-figyelő {#Verzio} telepítő
 AppPublisher=baluxXx
 DefaultDirName={localappdata}\Programs\Tarhely-figyelo
 DefaultGroupName=Tárhely-figyelő
@@ -23,7 +28,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 WizardStyle=modern
 DisableProgramGroupPage=yes
-UninstallDisplayName=Tárhely-figyelő
+UninstallDisplayName=Tárhely-figyelő {#Verzio}
 CloseApplications=no
 SetupLogging=yes
 

@@ -9,7 +9,7 @@ Az első beállítás nagyjából egy óra. Utána a program magától dolgozik.
 
 ## Gyorsindítás telepítővel (ajánlott)
 
-1. Töltsd le a legfrissebb `Tarhely-figyelo-Windows.exe` fájlt (**https://github.com/molnar-iroda/tarhely-figyelo/releases**),
+1. Töltsd le a legfrissebb `Tarhely-figyelo-Windows-<verzió>.exe` fájlt (pl. `Tarhely-figyelo-Windows-0.5.0.exe`) (**https://github.com/molnar-iroda/tarhely-figyelo/releases**),
    és indítsd el. Rendszergazdai jog nem kell; a telepítő mindent tartalmaz (a Node.js-t és a böngészőt is),
    semmit nem kell külön telepíteni. Ha a Windows „A számítógépét védte a Windows” ablakot mutat, kattints a
    **További információ**, majd a **Futtatás mindenképp** gombra (a telepítő nincs digitálisan aláírva).
@@ -26,7 +26,8 @@ A beállításaid és a letöltött levelek a `%APPDATA%\Tarhely-figyelo` mappá
 leírás a kézi (parancssoros) telepítést mutatja; **a telepítővel nem kell követned** (ugorj a
 [Mindennapi használat](#mindennapi-használat) részre).
 
-**Frissítés:** töltsd le az új telepítőt, és futtasd a régi fölé; az adataid megmaradnak.
+**Frissítés:** töltsd le az új telepítőt, és futtasd a régi fölé; az adataid megmaradnak. Mi változott:
+[VALTOZASOK.md](VALTOZASOK.md).
 **Eltávolítás:** Windows-beállítások → Alkalmazások → Tárhely-figyelő. A program rákérdez, hogy az adataidat
 is törölje-e, és megszünteti az automatikus futást.
 
@@ -262,7 +263,7 @@ A végén két új fájl lesz a `C:\mpcorp` mappában: **`beallitasok.json`** é
 | `"kiszolgalo": "smtp.example.com",` | A levelezőszerver neve. |
 | `"port": 587,` | Általában 587 marad. (Ez szám, ezért nincs idézőjelben.) |
 | `"felhasznalo": "tarhely@example.com",` | A küldő e-mail fiók felhasználóneve (általában maga az e-mail cím). |
-| `"felado": "Tárhely-figyelő <tarhely@example.com>"` | A feladó neve és címe, ahogy a könyvelők látni fogják. |
+| `"felado": "Tárhely-figyelő <tarhely@example.com>"` | A feladó neve és címe, ahogy a könyvelők látni fogják. Ha csak nevet írsz (`"Tárhely-figyelő"`), a cím a `felhasznalo` sorban megadott cím lesz. |
 
 **Így néz ki egy kitöltött fájl** (a te címeid mások lesznek):
 
@@ -378,7 +379,9 @@ minősülnek átvettnek.
 Nézd át a listát:
 
 - ha egy cég mellett `NINCS a céglistában` áll, vedd fel a céglistába (8. lépés);
-- ha rossz könyvelő szerepel valamelyik cég mellett, javítsd a céglistában.
+- ha rossz könyvelő szerepel valamelyik cég mellett, javítsd a céglistában;
+- ha egy postafiókból nem kell letölteni, vagy csak jelzést kérsz róla, állítsd be a kezelőfelület
+  **Postafiókok** lapján (lásd [Postafiókok kezelése](#postafiókok-kezelése)).
 
 Ha a belépés nem sikerül, a hibaüzenet megmondja, mi a gond (pl. rossz jelszó).
 Ekkor futtasd újra a `npm run beallitas`-t, és add meg újra a belépőt.
@@ -483,6 +486,24 @@ eldönteni, melyik céghez tartozik a dokumentum. Teendő:
 2. Vedd fel a céget a céglistába (`ceglista.xlsx`), hogy legközelebb már
    magától menjen.
 
+### Postafiókok kezelése
+
+A kezelőfelület **Postafiókok** lapja a tárhelyen elérhető összes postafiókot mutatja (a listát a lap
+**Postafiókok beolvasása** gombja frissíti: belép a tárhelyre, de semmit nem tölt le). Postafiókonként választhatsz:
+
+| Mód | Mit csinál a program? |
+| --- | --- |
+| **Letölt és küld** | Letölti az új leveleket (ez átvétel), és elküldi a céglista szerinti könyvelőnek. Ha címzettet írsz mellé, neki küldi. |
+| **Csak értesítés** | A levelet **nem tölti le és nem nyitja meg**, tehát nincs átvétel. Csak egy e-mailt küld a megadott címzettnek, hogy új üzenet érkezett (feladó, tárgy, típus, érkezés). Címzett kötelező. |
+| **Kihagy** | A postafiókot nem nézi. |
+
+A beállítás a **Mentés** gombbal érvényes, és a következő futástól számít. A régi „Kihagyott postafiókok”
+lista (Beállítások) továbbra is működik: soronként a 8 jegyű adószám vagy a név egy része. Ha egy postafiókra
+a Postafiókok lapon van beállítás, az számít.
+
+A **Beállítások** lapon az is megadható, mely üzenettípusokat ne töltsön le (*Kihagyott üzenettípusok*),
+melyeket töltsön le, de ne küldjön tovább (*Letölti, de nem küldi tovább*), és hogy menjen-e titkos másolat.
+
 ### Új ügyfél, könyvelőváltás
 
 Csak írd át a `ceglista.xlsx`-et, és mentsd el. Mást nem kell tenni.
@@ -543,7 +564,9 @@ alatt) és *Bekapcsolás*. Parancsablakból:
 
 ## A program frissítése
 
-**Telepítővel:** töltsd le az új `Tarhely-figyelo-Windows.exe` fájlt, és futtasd a régi fölé. A beállításaid,
+**Telepítővel:** töltsd le az új `Tarhely-figyelo-Windows-<verzió>.exe` fájlt, és futtasd a régi fölé. Hogy
+melyik verzió van fent, a kezelőfelület bal felső sarkában, a név alatt látod; az újdonságok:
+[VALTOZASOK.md](VALTOZASOK.md). A beállításaid,
 a letöltött leveleid és a jelszavaid megmaradnak; az ütemezést a telepítő bejelölt opciója újra beállítja.
 
 **Kézi telepítésnél:**

@@ -19,6 +19,7 @@ import { writeRunStatus } from "./run-status.ts";
 import type { Log } from "./runlog.ts";
 import { smtpPassword } from "./secrets.ts";
 import { acquireLock, writeFileAtomic } from "./state.ts";
+import { PRODUCT, VERSION } from "./version.ts";
 
 export interface RunOptions {
   readonly config: Config;
@@ -93,7 +94,8 @@ export async function runOnce(options: RunOptions): Promise<number> {
   const counts = { newLetters: 0, emailed: 0, unmatched: 0, skipped: 0, notified: 0 };
   const allProblems: string[] = [];
   let exitCode: number | null = null;
-  writeRunStatus(config.dataDir, { mode, startedAt, finishedAt: null, exitCode: null, ...counts, problems: [] });
+  log(`${PRODUCT} – ${mode === "proba" ? "próbafutás" : mode === "feldolgozas" ? "feldolgozás" : "futás"} indul.`);
+  writeRunStatus(config.dataDir, { mode, verzio: VERSION, startedAt, finishedAt: null, exitCode: null, ...counts, problems: [] });
   try {
     const tarhelyDir = join(config.dataDir, "tarhely");
     const problems: string[] = allProblems;
@@ -196,6 +198,7 @@ export async function runOnce(options: RunOptions): Promise<number> {
   } finally {
     writeRunStatus(config.dataDir, {
       mode,
+      verzio: VERSION,
       startedAt,
       finishedAt: new Date().toISOString(),
       exitCode: exitCode ?? 1,

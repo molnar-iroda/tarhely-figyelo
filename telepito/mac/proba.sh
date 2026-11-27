@@ -43,6 +43,9 @@ check "a program ott van" '[ -f "$RES/src/cli.ts" ]'
 check "a Chromium ott van" 'ls -d "$RES"/browsers/chromium-* >/dev/null 2>&1'
 check "az ikon és az Info.plist rendben" 'plutil -lint "$APP/Contents/Info.plist" >/dev/null && [ -f "$RES/Tarhely.icns" ]'
 check "az aláírás érvényes" 'codesign --verify "$APP"'
+VERZIO="$(node -p "require('$(cd "$(dirname "$0")/../.." && pwd)/package.json').version")"
+check "az Info.plist verziója $VERZIO" '[ "$(plutil -extract CFBundleShortVersionString raw "$APP/Contents/Info.plist")" = "$VERZIO" ]'
+check "a telepített program --verzio kimenete $VERZIO" '[ "$("$RES/node/bin/node" "$RES/src/cli.ts" --verzio)" = "$VERZIO" ]'
 
 echo "== Kezelőfelület az alkalmazás-indítóval"
 "$APP/Contents/MacOS/Tarhely-figyelo"
